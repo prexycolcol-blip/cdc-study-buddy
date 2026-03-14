@@ -74,7 +74,7 @@ def clear_sessions() -> None:
 
 
 st.set_page_config(page_title="Study Timer", page_icon="⏳", layout="centered")
-st.title("📚 Study Timer Tracker")
+st.title("📚 CDC Study Tracker")
 st.write("Track your focused study sessions and review your history.")
 
 init_state()
