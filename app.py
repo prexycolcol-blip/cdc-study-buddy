@@ -40,6 +40,9 @@ def init_state() -> None:
     if "current_subject" not in st.session_state:
         st.session_state.current_subject = ""
 
+    if "last_flashcard" not in st.session_state:
+        st.session_state.last_flashcard = None
+
 
 def format_duration(total_seconds: float) -> str:
     seconds = int(total_seconds)
@@ -163,6 +166,7 @@ init_state()
 
 st.subheader("Current Session")
 subject_input = st.text_input("Study subject label", placeholder="Biology, Algebra, CDC prep...")
+st.caption("Tip: give each session a clear subject so your history stays organized.")
 
 if not st.session_state.timer_running:
     st.button(
@@ -186,11 +190,10 @@ st.subheader("Last Study Session")
 sessions = st.session_state.sessions
 if sessions:
     last = sessions[-1]
-    st.markdown(
-        f"**Subject:** {last.get('subject', 'General Study')}  \\\n"
-        f"**Duration:** {format_duration(last['duration_seconds'])}  \\\n"
-        f"**When:** {last['start']}"
-    )
+    cols = st.columns(3)
+    cols[0].metric("Subject", last.get("subject", "General Study"))
+    cols[1].metric("Duration", format_duration(last["duration_seconds"]))
+    cols[2].metric("Started", last["start"])
 else:
     st.info("No sessions yet. Start a timer to create your first entry.")
 
@@ -234,8 +237,16 @@ if st.button("✨ Generate Flashcard", use_container_width=True):
         image_bytes = uploaded_image.getvalue()
         with st.spinner("Generating flashcard..."):
             question, answer, note = generate_flashcard_with_ai(image_bytes, topic, flashcard_context.strip())
+        st.session_state.last_flashcard = {
+            "topic": topic,
+            "question": question,
+            "answer": answer,
+        }
 
         st.success(note)
-        st.markdown("### Flashcard")
-        st.markdown(f"**Q:** {question}")
-        st.markdown(f"**A:** {answer}")
+
+if st.session_state.last_flashcard:
+    st.markdown("### Latest Flashcard")
+    st.markdown(f"**Topic:** {st.session_state.last_flashcard['topic']}")
+    st.markdown(f"**Q:** {st.session_state.last_flashcard['question']}")
+    st.markdown(f"**A:** {st.session_state.last_flashcard['answer']}")
