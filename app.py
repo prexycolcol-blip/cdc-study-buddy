@@ -235,8 +235,10 @@ uploaded_image = st.file_uploader("Upload a picture", type=["png", "jpg", "jpeg"
 if uploaded_image is not None:
     st.image(uploaded_image, caption="Uploaded study image", use_container_width=True)
 
-if st.button("✨ Generate Flashcard", use_container_width=True):
-if st.button("✨ Generate Flashcards", use_container_width=True):
+if condition:
+    if st.button("✨ Generate Flashcard", use_container_width=True):
+st.write("Generating flashcards...")
+
     if uploaded_image is None:
         st.warning("Please upload an image first.")
     else:
