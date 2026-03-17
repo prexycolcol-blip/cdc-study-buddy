@@ -88,7 +88,7 @@ def clear_sessions() -> None:
 
 
 def generate_flashcard_with_ai(image_bytes: bytes, topic: str, extra_context: str) -> tuple[str, str, str]:
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = os.getenv("cdc")
     if not api_key:
         question = f"What are 3 key facts about {topic}?"
         answer = (
@@ -219,4 +219,55 @@ else:
     st.info("No saved study sessions yet. Start the timer to log your first one!")
 
 
-    st.markdown(f"**A:** {st.session_state.last_flashcard['answer']}")
+    st.divider()
+st.subheader("AI Flashcard from Your Picture")
+st.caption("Upload an image of notes/slides. The app creates a study flashcard from it.")
+st.subheader("AI Flashcards from Your Picture")
+st.caption("Upload notes/slides and generate multiple flashcards with hints.")
+
+flashcard_topic = st.text_input("Flashcard topic", placeholder="Cell biology")
+flashcard_context = st.text_area("Extra context (optional)", placeholder="What chapter or exam is this for?")
+col1, col2 = st.columns(2)
+flashcard_count = col1.slider("Number of flashcards", min_value=1, max_value=5, value=3)
+difficulty = col2.selectbox("Difficulty", ["Easy", "Medium", "Hard"], index=1)
+uploaded_image = st.file_uploader("Upload a picture", type=["png", "jpg", "jpeg", "webp"])
+
+if uploaded_image is not None:
+    st.image(uploaded_image, caption="Uploaded study image", use_container_width=True)
+
+if st.button("✨ Generate Flashcard", use_container_width=True):
+if st.button("✨ Generate Flashcards", use_container_width=True):
+    if uploaded_image is None:
+        st.warning("Please upload an image first.")
+    else:
+        topic = flashcard_topic.strip() or "your study subject"
+        image_bytes = uploaded_image.getvalue()
+        with st.spinner("Generating flashcard..."):
+            question, answer, note = generate_flashcard_with_ai(image_bytes, topic, flashcard_context.strip())
+
+        with st.spinner("Generating flashcards..."):
+            cards, note = generate_flashcards_with_ai(
+                image_bytes=image_bytes,
+                topic=topic,
+                extra_context=flashcard_context.strip(),
+                card_count=flashcard_count,
+                difficulty=difficulty,
+            )
+
+        st.session_state.latest_flashcards = cards
+        st.success(note)
+        st.markdown("### Flashcard")
+        st.markdown(f"**Q:** {question}")
+        st.markdown(f"**A:** {answer}")
+
+if st.session_state.latest_flashcards:
+    header_cols = st.columns([3, 1])
+    header_cols[0].markdown("### Latest Flashcard Set")
+    if header_cols[1].button("🔀 Shuffle"):
+        random.shuffle(st.session_state.latest_flashcards)
+
+    for index, card in enumerate(st.session_state.latest_flashcards, start=1):
+        with st.expander(f"Card {index}: {card['question']}"):
+            st.markdown(f"**Answer:** {card['answer']}")
+            if card.get("hint"):
+                st.caption(f"Hint: {card['hint']}")
