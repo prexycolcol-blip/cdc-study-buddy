@@ -18,6 +18,7 @@ def default_store() -> dict:
         "subjects": [],
         "tasks": [],
         "plans": {},
+        "flashcards": [],
     }
 
 
@@ -148,6 +149,27 @@ def set_plan(key: str, text: str) -> None:
     save_store()
 
 
+def add_flashcard(subject: str, question: str, answer: str) -> None:
+    if not question or not answer:
+        return
+    st.session_state.store["flashcards"].append(
+        {
+            "id": int(time.time() * 1000),
+            "subject": subject or "General",
+            "question": question,
+            "answer": answer,
+        }
+    )
+    save_store()
+
+
+def delete_flashcard(card_id: int) -> None:
+    st.session_state.store["flashcards"] = [
+        card for card in st.session_state.store["flashcards"] if card["id"] != card_id
+    ]
+    save_store()
+
+
 st.set_page_config(page_title="Study Buddy", page_icon="📚", layout="wide")
 init_state()
 tick_timer()
@@ -166,8 +188,14 @@ with col3:
     completion = (done_count / len(tasks) * 100) if tasks else 0
     st.metric("Task Completion", f"{completion:.0f}%")
 
-calendar_tab, timer_tab, task_tab, progress_tab = st.tabs(
-    ["📅 Study Calendar", "⏱️ Pomodoro Timer", "✅ Task / Subject Tracker", "📊 Progress"]
+calendar_tab, timer_tab, task_tab, flashcard_tab, progress_tab = st.tabs(
+    [
+        "📅 Study Calendar",
+        "⏱️ Pomodoro Timer",
+        "✅ Task / Subject Tracker",
+        "🗂️ Flashcards",
+        "📊 Progress",
+    ]
 )
 
 with calendar_tab:
@@ -250,6 +278,37 @@ with task_tab:
         )
         if new_val != task["done"]:
             mark_task(task["id"], new_val)
+
+with flashcard_tab:
+    st.subheader("Manual Flashcards (No AI)")
+    st.caption("Create and review your own flashcards only — no auto generation.")
+
+    with st.form("flashcard_form", clear_on_submit=True):
+        flash_subject = st.selectbox(
+            "Subject",
+            options=st.session_state.store["subjects"] or ["General"],
+            key="flash_subject",
+        )
+        flash_question = st.text_input("Question", placeholder="What is photosynthesis?")
+        flash_answer = st.text_area("Answer", placeholder="Process plants use to make food...")
+        add_flash_btn = st.form_submit_button("Add Flashcard")
+        if add_flash_btn:
+            add_flashcard(flash_subject, flash_question.strip(), flash_answer.strip())
+            st.success("Flashcard added")
+
+    cards = st.session_state.store["flashcards"]
+    if not cards:
+        st.info("No flashcards yet. Add your first one above.")
+    else:
+        st.markdown("### Review Cards")
+        for card in reversed(cards):
+            with st.container(border=True):
+                st.write(f"**[{card['subject']}]** {card['question']}")
+                with st.expander("Show answer"):
+                    st.write(card["answer"])
+                if st.button("Delete", key=f"del_card_{card['id']}"):
+                    delete_flashcard(card["id"])
+                    st.rerun()
 
 with progress_tab:
     st.subheader("Study Progress")
