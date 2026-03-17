@@ -4,6 +4,8 @@ import base64
 import json
 import os
 import random
+import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -215,106 +217,122 @@ def generate_flashcards_with_ai(
     return cards, "AI output was not valid JSON; fallback flashcards were generated locally."
 
 
-st.set_page_config(page_title="Study Timer", page_icon="⏳", layout="centered")
-st.title("📚 CDC Study Buddy")
-st.write("Use a labeled study timer, review your latest session, and create flashcards from images.")
+def running_via_streamlit() -> bool:
+    return "streamlit" in Path(sys.argv[0]).name.lower()
 
-init_state()
 
-st.subheader("Current Session")
-subject_input = st.text_input("Study subject label", placeholder="Biology, Algebra, CDC prep...")
-st.caption("Tip: give each session a clear subject so your history stays organized.")
+def launch_streamlit() -> int:
+    command = [sys.executable, "-m", "streamlit", "run", str(Path(__file__).name)]
+    return subprocess.call(command, cwd=Path(__file__).parent)
 
-if not st.session_state.timer_running:
-    st.button(
-        "▶️ Start Study Timer",
-        on_click=start_timer,
-        args=(subject_input,),
-        use_container_width=True,
-    )
-else:
-    elapsed = time.time() - st.session_state.start_time
-    st.metric("Elapsed Time", format_duration(elapsed))
-    st.caption(f"Subject: {st.session_state.current_subject}")
-    st.button("⏹️ Stop and Save Session", on_click=stop_and_save_timer, use_container_width=True)
-    st.caption("Timer updates every second while running.")
-    time.sleep(1)
-    st.rerun()
 
-st.divider()
-st.subheader("Last Study Session")
+def render_app() -> None:
+    st.set_page_config(page_title="Study Timer", page_icon="⏳", layout="centered")
+    st.title("📚 CDC Study Buddy")
+    st.write("Use a labeled study timer, review your latest session, and create flashcards from images.")
 
-sessions = st.session_state.sessions
-if sessions:
-    last = sessions[-1]
-    cols = st.columns(3)
-    cols[0].metric("Subject", last.get("subject", "General Study"))
-    cols[1].metric("Duration", format_duration(last["duration_seconds"]))
-    cols[2].metric("Started", last["start"])
-else:
-    st.info("No sessions yet. Start a timer to create your first entry.")
+    init_state()
 
-st.divider()
-st.subheader("Saved Sessions")
+    st.subheader("Current Session")
+    subject_input = st.text_input("Study subject label", placeholder="Biology, Algebra, CDC prep...")
+    st.caption("Tip: give each session a clear subject so your history stays organized.")
 
-if sessions:
-    total_seconds = sum(item["duration_seconds"] for item in sessions)
-    st.metric("Total Study Time", format_duration(total_seconds))
-
-    rows = [
-        {
-            "Subject": item.get("subject", "General Study"),
-            "Start": item["start"],
-            "End": item["end"],
-            "Duration": format_duration(item["duration_seconds"]),
-        }
-        for item in reversed(sessions)
-    ]
-    st.dataframe(rows, use_container_width=True)
-    st.button("🗑️ Clear Saved Sessions", on_click=clear_sessions)
-else:
-    st.info("No saved study sessions yet. Start the timer to log your first one!")
-
-st.divider()
-st.subheader("AI Flashcards from Your Picture")
-st.caption("Upload notes/slides and generate multiple flashcards with hints.")
-
-flashcard_topic = st.text_input("Flashcard topic", placeholder="Cell biology")
-flashcard_context = st.text_area("Extra context (optional)", placeholder="What chapter or exam is this for?")
-col1, col2 = st.columns(2)
-flashcard_count = col1.slider("Number of flashcards", min_value=1, max_value=5, value=3)
-difficulty = col2.selectbox("Difficulty", ["Easy", "Medium", "Hard"], index=1)
-uploaded_image = st.file_uploader("Upload a picture", type=["png", "jpg", "jpeg", "webp"])
-
-if uploaded_image is not None:
-    st.image(uploaded_image, caption="Uploaded study image", use_container_width=True)
-
-if st.button("✨ Generate Flashcards", use_container_width=True):
-    if uploaded_image is None:
-        st.warning("Please upload an image first.")
+    if not st.session_state.timer_running:
+        st.button(
+            "▶️ Start Study Timer",
+            on_click=start_timer,
+            args=(subject_input,),
+            use_container_width=True,
+        )
     else:
-        topic = flashcard_topic.strip() or "your study subject"
-        image_bytes = uploaded_image.getvalue()
-        with st.spinner("Generating flashcards..."):
-            cards, note = generate_flashcards_with_ai(
-                image_bytes=image_bytes,
-                topic=topic,
-                extra_context=flashcard_context.strip(),
-                card_count=flashcard_count,
-                difficulty=difficulty,
-            )
+        elapsed = time.time() - st.session_state.start_time
+        st.metric("Elapsed Time", format_duration(elapsed))
+        st.caption(f"Subject: {st.session_state.current_subject}")
+        st.button("⏹️ Stop and Save Session", on_click=stop_and_save_timer, use_container_width=True)
+        st.caption("Timer updates every second while running.")
+        time.sleep(1)
+        st.rerun()
 
-        st.session_state.latest_flashcards = cards
-        st.success(note)
+    st.divider()
+    st.subheader("Last Study Session")
 
-if st.session_state.latest_flashcards:
-    header_cols = st.columns([3, 1])
-    header_cols[0].markdown("### Latest Flashcard Set")
-    if header_cols[1].button("🔀 Shuffle"):
-        random.shuffle(st.session_state.latest_flashcards)
+    sessions = st.session_state.sessions
+    if sessions:
+        last = sessions[-1]
+        cols = st.columns(3)
+        cols[0].metric("Subject", last.get("subject", "General Study"))
+        cols[1].metric("Duration", format_duration(last["duration_seconds"]))
+        cols[2].metric("Started", last["start"])
+    else:
+        st.info("No sessions yet. Start a timer to create your first entry.")
 
-    for index, card in enumerate(st.session_state.latest_flashcards, start=1):
-        with st.expander(f"Card {index}: {card['question']}"):
-            st.markdown(f"**Answer:** {card['answer']}")
-            if card.get("hint"):
-                st.caption(f"Hint: {card['hint']}")
+    st.divider()
+    st.subheader("Saved Sessions")
+
+    if sessions:
+        total_seconds = sum(item["duration_seconds"] for item in sessions)
+        st.metric("Total Study Time", format_duration(total_seconds))
+
+        rows = [
+            {
+                "Subject": item.get("subject", "General Study"),
+                "Start": item["start"],
+                "End": item["end"],
+                "Duration": format_duration(item["duration_seconds"]),
+            }
+            for item in reversed(sessions)
+        ]
+        st.dataframe(rows, use_container_width=True)
+        st.button("🗑️ Clear Saved Sessions", on_click=clear_sessions)
+    else:
+        st.info("No saved study sessions yet. Start the timer to log your first one!")
+
+    st.divider()
+    st.subheader("AI Flashcards from Your Picture")
+    st.caption("Upload notes/slides and generate multiple flashcards with hints.")
+
+    flashcard_topic = st.text_input("Flashcard topic", placeholder="Cell biology")
+    flashcard_context = st.text_area("Extra context (optional)", placeholder="What chapter or exam is this for?")
+    col1, col2 = st.columns(2)
+    flashcard_count = col1.slider("Number of flashcards", min_value=1, max_value=5, value=3)
+    difficulty = col2.selectbox("Difficulty", ["Easy", "Medium", "Hard"], index=1)
+    uploaded_image = st.file_uploader("Upload a picture", type=["png", "jpg", "jpeg", "webp"])
+
+    if uploaded_image is not None:
+        st.image(uploaded_image, caption="Uploaded study image", use_container_width=True)
+
+    if st.button("✨ Generate Flashcards", use_container_width=True):
+        if uploaded_image is None:
+            st.warning("Please upload an image first.")
+        else:
+            topic = flashcard_topic.strip() or "your study subject"
+            image_bytes = uploaded_image.getvalue()
+            with st.spinner("Generating flashcards..."):
+                cards, note = generate_flashcards_with_ai(
+                    image_bytes=image_bytes,
+                    topic=topic,
+                    extra_context=flashcard_context.strip(),
+                    card_count=flashcard_count,
+                    difficulty=difficulty,
+                )
+
+            st.session_state.latest_flashcards = cards
+            st.success(note)
+
+    if st.session_state.latest_flashcards:
+        header_cols = st.columns([3, 1])
+        header_cols[0].markdown("### Latest Flashcard Set")
+        if header_cols[1].button("🔀 Shuffle"):
+            random.shuffle(st.session_state.latest_flashcards)
+
+        for index, card in enumerate(st.session_state.latest_flashcards, start=1):
+            with st.expander(f"Card {index}: {card['question']}"):
+                st.markdown(f"**Answer:** {card['answer']}")
+                if card.get("hint"):
+                    st.caption(f"Hint: {card['hint']}")
+
+
+if __name__ == "__main__" and not running_via_streamlit():
+    raise SystemExit(launch_streamlit())
+
+render_app()
