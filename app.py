@@ -218,35 +218,5 @@ if sessions:
 else:
     st.info("No saved study sessions yet. Start the timer to log your first one!")
 
-st.divider()
-st.subheader("AI Flashcard from Your Picture")
-st.caption("Upload an image of notes/slides. The app creates a study flashcard from it.")
 
-flashcard_topic = st.text_input("Flashcard topic", placeholder="Cell biology")
-flashcard_context = st.text_area("Extra context (optional)", placeholder="What chapter or exam is this for?")
-uploaded_image = st.file_uploader("Upload a picture", type=["png", "jpg", "jpeg", "webp"])
-
-if uploaded_image is not None:
-    st.image(uploaded_image, caption="Uploaded study image", use_container_width=True)
-
-if st.button("✨ Generate Flashcard", use_container_width=True):
-    if uploaded_image is None:
-        st.warning("Please upload an image first.")
-    else:
-        topic = flashcard_topic.strip() or "your study subject"
-        image_bytes = uploaded_image.getvalue()
-        with st.spinner("Generating flashcard..."):
-            question, answer, note = generate_flashcard_with_ai(image_bytes, topic, flashcard_context.strip())
-        st.session_state.last_flashcard = {
-            "topic": topic,
-            "question": question,
-            "answer": answer,
-        }
-
-        st.success(note)
-
-if st.session_state.last_flashcard:
-    st.markdown("### Latest Flashcard")
-    st.markdown(f"**Topic:** {st.session_state.last_flashcard['topic']}")
-    st.markdown(f"**Q:** {st.session_state.last_flashcard['question']}")
     st.markdown(f"**A:** {st.session_state.last_flashcard['answer']}")
